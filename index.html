@@ -7,11 +7,24 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Timini - Điều Khiển Đèn LED Thông Minh</h1>
-    
+    <div id="ip-input-modal" class="modal">
+        <div class="modal-content">
+            <h3>Kết nối với thiết bị Timini</h3>
+            <p>Vui lòng nhập địa chỉ IP của thiết bị ESP32</p>
+            <input type="text" id="device-ip-input" placeholder="Ví dụ: 192.168.1.100">
+            <div class="modal-buttons">
+                <button id="connect-btn">Kết nối</button>
+                <button id="local-connect-btn">Kết nối localhost</button>
+            </div>
+            <p id="connection-hint">Nếu không biết IP, hãy kiểm tra Serial Monitor của ESP32</p>
+        </div>
+    </div>
+
     <div class="container">
+        <h1>Timini - Điều Khiển Đèn LED Thông Minh</h1>
+        
         <div id="connection-status" class="connection-status disconnected">
-            Đang kết nối với thiết bị...
+            Chưa kết nối với thiết bị
         </div>
         
         <div class="control-panel">
@@ -24,6 +37,7 @@
                 <button id="btn-on" class="btn-on">BẬT ĐÈN</button>
                 <button id="btn-off" class="btn-off">TẮT ĐÈN</button>
                 <button id="btn-voice" class="btn-voice">NÓI VỚI TIMINI</button>
+                <button id="btn-change-ip" class="btn-change-ip">ĐỔI IP</button>
             </div>
         </div>
         
@@ -31,12 +45,12 @@
             <h2>Trò Chuyện Với Timini</h2>
             <div id="chat-messages" class="chat-messages">
                 <div class="message bot-message">
-                    Chào bạn! Tôi là Timini - trợ lý thông minh của bạn. Tôi có thể giúp bạn điều khiển đèn LED hoặc trả lời các câu hỏi!
+                    Chào bạn! Hãy nhập địa chỉ IP của thiết bị Timini để bắt đầu.
                 </div>
             </div>
             <div class="chat-input">
-                <input type="text" id="user-input" placeholder="Nhập lệnh hoặc câu hỏi...">
-                <button id="send-btn">Gửi</button>
+                <input type="text" id="user-input" placeholder="Nhập lệnh hoặc câu hỏi..." disabled>
+                <button id="send-btn" disabled>Gửi</button>
             </div>
         </div>
     </div>
