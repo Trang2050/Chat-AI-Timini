@@ -1,4 +1,4 @@
-// Thêm vào đầu file script.js
+// Cấu hình Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyBWa0utLTN3oEkENPxwui87_HQsw9VKiSM",
     authDomain: "ai-timini.firebaseapp.com",
@@ -8,34 +8,39 @@ const firebaseConfig = {
     appId: "1:253638969082:web:88588b14dd6629e52bab43"
 };
 
-// Khởi tạo Firebase
-try {
-    firebase.initializeApp(firebaseConfig);
-    console.log("Firebase initialized successfully");
-} catch (error) {
-    console.error("Firebase initialization error:", error);
-}
-
-
-
-
-// Khởi tạo Firebase
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-
-// Cấu hình hệ thống
-const deviceIP = "192.168.1.7"; // Địa chỉ IP cố định của thiết bị
-const config = {
-    port: 81
-};
-
 // Biến toàn cục
+let firebaseInitialized = false;
+let database;
+let firebaseRef;
 let websocket = null;
-const firebaseRef = database.ref('devices/led1');
+const deviceIP = "192.168.1.7"; // Địa chỉ IP cố định của thiết bị
+const config = { port: 81 };
+
+// Khởi tạo Firebase
+function initializeFirebase() {
+    try {
+        firebase.initializeApp(firebaseConfig);
+        database = firebase.database();
+        firebaseRef = database.ref('devices/led1');
+        firebaseInitialized = true;
+        console.log("Firebase initialized successfully");
+        
+        // Xác thực ẩn danh
+        firebase.auth().signInAnonymously()
+            .then(() => console.log("Đã đăng nhập Firebase thành công"))
+            .catch(error => console.error("Lỗi đăng nhập Firebase:", error));
+            
+    } catch (error) {
+        console.error("Firebase initialization error:", error);
+        firebaseInitialized = false;
+    }
+}
 
 // Hiển thị trạng thái kết nối
 function showConnectingStatus() {
     const statusElement = document.getElementById('connection-status');
+    if (!statusElement) return;
+    
     statusElement.innerHTML = `
         <div class="loading-dots">
             <span></span><span></span><span></span>
@@ -47,6 +52,11 @@ function showConnectingStatus() {
 
 // Hàm gửi lệnh qua Firebase
 function sendFirebaseCommand(command) {
+    if (!firebaseInitialized) {
+        console.warn("Firebase chưa được khởi tạo");
+        return;
+    }
+    
     firebaseRef.update({
         command: command,
         timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -56,11 +66,16 @@ function sendFirebaseCommand(command) {
     });
 }
 
-// Kết nối WebSocket trực tiếp
+// Kết nối WebSocket
 function connectWebSocket() {
     showConnectingStatus();
     
-    if (websocket) websocket.close();
+    // Đóng kết nối cũ nếu tồn tại
+    if (websocket) {
+        websocket.onclose = null;
+        websocket.onerror = null;
+        websocket.close();
+    }
 
     const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const socketUrl = `${protocol}${deviceIP}:${config.port}`;
@@ -68,24 +83,38 @@ function connectWebSocket() {
     console.log(`Đang kết nối đến: ${socketUrl}`);
     websocket = new WebSocket(socketUrl);
 
-    // Theo dõi thay đổi từ Firebase
-    firebaseRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data && data.command) {
-            const command = data.command.toLowerCase();
-            if (command === 'on' || command === 'off') {
-                sendWebSocketMessage({ type: 'led_control', command: command });
-                addBotMessage(`Đã nhận lệnh từ Firebase: ${command}`);
-            }
+    // Thiết lập timeout kết nối
+    const connectionTimeout = setTimeout(() => {
+        if (websocket.readyState !== WebSocket.OPEN) {
+            console.log('Kết nối timeout');
+            websocket.close();
+            updateConnectionStatus(false);
+            addBotMessage("Không thể kết nối với thiết bị. Vui lòng thử lại sau.");
         }
-    });
+    }, 5000);
 
     websocket.onopen = () => {
+        clearTimeout(connectionTimeout);
         console.log('✅ Kết nối WebSocket thành công');
         updateConnectionStatus(true);
         enableControls(true);
         addBotMessage("Đã kết nối với thiết bị Timini");
         sendWebSocketMessage({ type: 'get_status' });
+    };
+
+    websocket.onerror = (error) => {
+        clearTimeout(connectionTimeout);
+        console.error('Lỗi WebSocket:', error);
+        updateConnectionStatus(false);
+        addBotMessage("Lỗi kết nối với thiết bị");
+    };
+
+    websocket.onclose = () => {
+        clearTimeout(connectionTimeout);
+        console.log('❌ Mất kết nối');
+        updateConnectionStatus(false);
+        enableControls(false);
+        setTimeout(connectWebSocket, 5000);
     };
 
     websocket.onmessage = (event) => {
@@ -97,30 +126,15 @@ function connectWebSocket() {
                 addBotMessage(data.message);
             } else if (data.type === 'led_status') {
                 updateLEDState(data.value);
-                // Cập nhật trạng thái lên Firebase
-                firebaseRef.update({ status: data.value });
             }
         } catch (error) {
             console.error('Lỗi phân tích tin nhắn:', error);
         }
     };
-
-    websocket.onclose = () => {
-        console.log('❌ Mất kết nối');
-        updateConnectionStatus(false);
-        enableControls(false);
-        setTimeout(connectWebSocket, 5000); // Tự động kết nối lại sau 5s
-    };
-
-    websocket.onerror = (error) => {
-        console.error('Lỗi WebSocket:', error);
-        updateConnectionStatus(false);
-        addBotMessage("Lỗi kết nối với thiết bị. Đang thử lại...");
-    };
 }
 
 function sendWebSocketMessage(message) {
-    if (websocket?.readyState === WebSocket.OPEN) {
+    if (websocket && websocket.readyState === WebSocket.OPEN) {
         websocket.send(JSON.stringify(message));
     } else {
         console.warn('Chưa kết nối WebSocket');
@@ -156,6 +170,8 @@ function updateConnectionStatus(connected) {
 
 function addUserMessage(message) {
     const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) return;
+    
     const msg = document.createElement('div');
     msg.className = 'message user-message';
     msg.textContent = message;
@@ -165,6 +181,8 @@ function addUserMessage(message) {
 
 function addBotMessage(message) {
     const chatMessages = document.getElementById('chat-messages');
+    if (!chatMessages) return;
+    
     const msg = document.createElement('div');
     msg.className = 'message bot-message';
     msg.textContent = message;
@@ -182,6 +200,8 @@ function updateLEDState(state) {
 
 function sendChatMessage() {
     const input = document.getElementById('user-input');
+    if (!input) return;
+    
     const message = input.value.trim();
     if (!message) return;
     
@@ -192,18 +212,10 @@ function sendChatMessage() {
 
 // Khởi động ứng dụng
 document.addEventListener('DOMContentLoaded', () => {
-    // Xác thực ẩn danh với Firebase
-    firebase.auth().signInAnonymously()
-        .then(() => {
-            console.log("Đã đăng nhập Firebase thành công");
-            connectWebSocket(); // Kết nối ngay khi trang tải xong
-        })
-        .catch(error => {
-            console.error("Lỗi đăng nhập Firebase:", error);
-            connectWebSocket(); // Vẫn thử kết nối nếu Firebase lỗi
-        });
+    initializeFirebase();
+    connectWebSocket();
 
-    // Thiết lập sự kiện cho các nút
+    // Thiết lập sự kiện
     document.getElementById('btn-on')?.addEventListener('click', () => {
         sendWebSocketMessage({ type: 'led_control', command: 'on' });
         sendFirebaseCommand('on');
