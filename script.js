@@ -1,18 +1,11 @@
 // Cấu hình hệ thống
 const deviceIP = "192.168.1.4"
 const config = {
-     port: 81,
-    ttsSettings: {
-        lang: 'vi-VN',
-        rate: 1.0,
-        pitch: 1.0,
-        volume: 1.0
-    }
+    port: 81
 };
 
 // Biến toàn cục
 let websocket = null;
-let voicesLoaded = false;
 let currentDeviceIP = null;
 
 // Hiển thị modal nhập IP
@@ -58,7 +51,6 @@ function connectWebSocket(ip) {
 
             if (data.type === 'ai_response') {
                 addBotMessage(data.message);
-                speak(data.message);
             } else if (data.type === 'led_status') {
                 updateLEDState(data.value);
             }
@@ -98,7 +90,7 @@ function sendWebSocketMessage(message) {
 }
 
 function enableControls(enabled) {
-    ['btn-on', 'btn-off', 'btn-voice', 'user-input', 'send-btn'].forEach(id => {
+    ['btn-on', 'btn-off', 'user-input', 'send-btn'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = !enabled;
     });
@@ -149,67 +141,8 @@ function sendChatMessage() {
     input.value = '';
 }
 
-function speak(text) {
-    if (!voicesLoaded) return;
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const vietnameseVoice = voices.find(v => v.lang.includes('vi') && (v.name.toLowerCase().includes('female') || v.name.includes('Google')));
-    if (vietnameseVoice) utterance.voice = vietnameseVoice;
-
-    utterance.lang = config.ttsSettings.lang;
-    utterance.rate = config.ttsSettings.rate;
-    utterance.pitch = config.ttsSettings.pitch;
-    utterance.volume = config.ttsSettings.volume;
-
-    const messages = document.querySelectorAll('.bot-message');
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage) {
-        lastMessage.classList.add('speaking');
-        utterance.onend = () => lastMessage.classList.remove('speaking');
-        utterance.onerror = () => lastMessage.classList.remove('speaking');
-    }
-
-    window.speechSynthesis.speak(utterance);
-}
-
-function initTTS() {
-    if (!('speechSynthesis' in window)) return;
-    speechSynthesis.onvoiceschanged = () => {
-        voicesLoaded = true;
-        console.log('Đã tải giọng nói:', speechSynthesis.getVoices());
-    };
-    if (speechSynthesis.getVoices().length > 0) voicesLoaded = true;
-}
-
-function handleVoiceCommand() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert('Trình duyệt không hỗ trợ nhận diện giọng nói');
-        return;
-    }
-
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = 'vi-VN';
-    recognition.interimResults = false;
-
-    recognition.onstart = () => document.getElementById('btn-voice').textContent = 'Đang nghe...';
-
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        document.getElementById('user-input').value = transcript;
-        sendChatMessage();
-    };
-
-    recognition.onerror = recognition.onend = () => {
-        document.getElementById('btn-voice').textContent = 'NÓI VỚI AI';
-    };
-
-    recognition.start();
-}
-
 // Khởi động
 document.addEventListener('DOMContentLoaded', () => {
-    initTTS();
     showIPModal();
 
     document.getElementById('connect-btn')?.addEventListener('click', () => {
@@ -237,6 +170,4 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('user-input')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') sendChatMessage();
     });
-
-    document.getElementById('btn-voice')?.addEventListener('click', handleVoiceCommand);
 });
