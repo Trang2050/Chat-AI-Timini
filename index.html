@@ -1,42 +1,33 @@
 <!DOCTYPE html>
 <html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timini - Điều Khiển Đèn LED Thông Minh</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Timini - Điều Khiển Đèn LED Thông Minh</title>
+        <link rel="stylesheet" href="styles.css">
+        
+        <!-- Thêm Firebase SDK -->
+        <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    </head>
 <body>
-    <div id="ip-input-modal" class="modal">
-        <div class="modal-content">
-            <h3>Kết nối với thiết bị Timini</h3>
-            <p>Vui lòng nhập địa chỉ IP của thiết bị ESP32</p>
-            <input type="text" id="device-ip-input" placeholder="Ví dụ: 192.168.1.100">
-            <div class="modal-buttons">
-                <button id="connect-btn">Kết nối</button>
-                <button id="local-connect-btn">Kết nối localhost</button>
-            </div>
-            <p id="connection-hint">Nếu không biết IP, hãy kiểm tra Serial Monitor của ESP32</p>
-        </div>
-    </div>
-
     <div class="container">
         <h1>Timini - Điều Khiển Đèn LED Thông Minh</h1>
         
-        <div id="connection-status" class="connection-status disconnected">
-            Chưa kết nối với thiết bị
+        <div id="connection-status" class="connection-status">
+            Đang kết nối với thiết bị...
         </div>
         
         <div class="control-panel">
             <h2>Điều Khiển Đèn LED</h2>
             <div class="led-status">
                 <div id="led-indicator" class="led-indicator"></div>
-                <span id="led-text">Đèn đang TẮT</span>
+                <span id="led-text">Đang kết nối...</span>
             </div>
             <div class="button-group">
                 <button id="btn-on" class="btn-on">BẬT ĐÈN</button>
                 <button id="btn-off" class="btn-off">TẮT ĐÈN</button>
-                <button id="btn-change-ip" class="btn-change-ip">ĐỔI IP</button>
             </div>
         </div>
         
@@ -44,12 +35,12 @@
             <h2>Trò Chuyện Với Timini</h2>
             <div id="chat-messages" class="chat-messages">
                 <div class="message bot-message">
-                    Chào bạn! Hãy nhập địa chỉ IP của thiết bị Timini để bắt đầu.
+                    Chào bạn! Timini đang kết nối...
                 </div>
             </div>
             <div class="chat-input">
-                <input type="text" id="user-input" placeholder="Nhập lệnh hoặc câu hỏi..." disabled>
-                <button id="send-btn" disabled>Gửi</button>
+                <input type="text" id="user-input" placeholder="Nhập lệnh hoặc câu hỏi...">
+                <button id="send-btn">Gửi</button>
             </div>
         </div>
     </div>
